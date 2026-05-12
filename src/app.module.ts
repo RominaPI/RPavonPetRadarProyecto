@@ -6,10 +6,12 @@ import { FoundPetModule } from './found-pet/found-pet.module';
 import { LostPetModule } from './lost-pet/lost-pet.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { dataSourceOptions } from './core/database/datasource';
+import { CacheService } from './cache/cache.service';
+import { CacheModule } from './cache/cache.module';
 
 @Module({
-  imports: [EmailModule, FoundPetModule, LostPetModule, TypeOrmModule.forRoot(dataSourceOptions)],
+  imports: [EmailModule, FoundPetModule, LostPetModule, TypeOrmModule.forRoot(dataSourceOptions), CacheModule],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, CacheService],
 })
 export class AppModule {}

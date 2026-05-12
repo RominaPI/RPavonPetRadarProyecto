@@ -7,7 +7,10 @@ import { FoundPetDTO } from 'src/core/interfaces/foundPet-DTO.interface';
 import { generatePetEmailTemplate} from 'src/found-pet/found-email.template';
 import { EmailService } from 'src/email/email.service';
 import { Repository } from 'typeorm';
+import { logger } from 'src/config/logger';
+import { CacheService } from 'src/cache/cache.service';
 
+const CACHE_KEY_ALL_FOUNDPETS = 'found_pet:all';
 @Injectable()
 export class FoundPetService {
     constructor(
@@ -15,7 +18,8 @@ export class FoundPetService {
         private readonly lostPetRepository: Repository<LostPet>,
         @InjectRepository(FoundPet)
         private readonly foudPetRepository: Repository<FoundPet>,
-        private readonly emailService: EmailService
+        private readonly emailService: EmailService,
+        private readonly cacheService: CacheService
     ){}
     async createFoundPet(foundPet: FoundPetDTO): Promise<Boolean>{
         const newPet = this.foudPetRepository.create({
@@ -70,5 +74,55 @@ export class FoundPetService {
         }
         
         return true;
+    }
+
+    async getFoundPets(): Promise <FoundPet[]>{
+     try {
+        logger.info('[FoundPetServie] Consultando mascotas en cache');
+        const data = await this.cacheService.get<FoundPet[]>(CACHE_KEY_ALL_FOUNDPETS);
+        if (data && data.length > 0) {
+            logger.info("[FoundPetService] Encontramos ${data.length} mascotas en cache");
+            return data;
+            
+        }
+        const foundPets = await this.foudPetRepository.find();
+        logger.info(`[FoundPetService] Se obtuvieron ${foundPets.length} mascotas`);
+        const foundPetsString = JSON.stringify(foundPets);
+        await this.cacheService.set(CACHE_KEY_ALL_FOUNDPETS, foundPetsString);
+        logger.info(`[FoundPetService] Guardando mascotas en el caché`);
+        return foundPets;
+
+     } catch (error) {
+    logger.info(`Error al traer las mascotas`);
+    logger.error(error);
+    return[];
+
+     }  
+    }
+
+    async getPetByRadius(lat: number, lon: number, radius: number): Promise<LostPet[]> {
+    try {
+        console.log(`Buscando mascotas en ${lat}, ${lon} en un radio de ${radius} metros`);
+        
+        const lostPets = await this.lostPetRepository
+        .createQueryBuilder('lost_pet')
+        .where(
+            `ST_DWithin(
+            lost_pet.location::geography,
+            ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography,
+            :radius
+            )`,
+            { lon, lat, radius }
+        )
+        .andWhere('lost_pet.is_active = :isActive', { isActive: true }) // ← esto faltaba
+        .getMany();
+
+        console.log(`${lostPets.length} mascotas activas encontradas en un radio de ${radius} metros`);
+        return lostPets;
+
+    } catch (error) {
+        console.log(error);
+        return [];
+    }
     }
 }
