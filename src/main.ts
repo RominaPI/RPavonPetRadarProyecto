@@ -10,4 +10,4 @@ async function bootstrap() {
 }
 bootstrap();
 
-//Comentario para probsr push CI/CD
+//Comentario para probsr push CI/CD docker_user minusculas
