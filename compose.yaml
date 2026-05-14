@@ -5,7 +5,7 @@ services:
     image: pet-radar-api
     container_name: PetRadarRomina
     ports:
-      - 3000:3000
+      - 5000:5000
     environment:
       PORT: ${PORT}
       MAPBOX_TOKEN: ${MAPBOX_TOKEN}

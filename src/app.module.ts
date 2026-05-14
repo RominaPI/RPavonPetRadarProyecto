@@ -12,6 +12,6 @@ import { CacheModule } from './cache/cache.module';
 @Module({
   imports: [EmailModule, FoundPetModule, LostPetModule, TypeOrmModule.forRoot(dataSourceOptions), CacheModule],
   controllers: [AppController],
-  providers: [AppService, CacheService],
+  providers: [AppService],
 })
 export class AppModule {}

@@ -26,7 +26,7 @@ export class LostPet {
     owner_email: string
     @Column()
     owner_phone: string
-    @Column({type:'geometry', spatialFeatureType:'Point', srid: 4326})
+    @Column({type:'geography', spatialFeatureType:'Point', srid: 4326})
     location: Point
     @Column()
     address: string
