@@ -73,7 +73,7 @@ jobs:
 
             # ── Correr migraciones ─────────────────────────────────────────
             docker run --rm \
-              --network opt-pet-radar_default \
+              --network pet-radar_default \
               --env-file .env \
               ghcr.io/${{ secrets.DOCKER_USER }}/${{ secrets.DOCKER_IMAGE_NAME }}:latest \
               sh -c "npx typeorm -d dist/core/database/datasource.js migration:run"
