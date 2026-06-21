@@ -1,0 +1,87 @@
+name: Deploy to DigitalOcean
+
+on:
+  workflow_run:
+    workflows: ["Build Docker Image"]
+    types:
+      - completed
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Copiar compose.prod.yaml al droplet
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DROPLET_HOST }}
+          username: ${{ secrets.DROPLET_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "compose.prod.yaml"
+          target: "/opt/pet-radar"
+
+      - name: Deploy en el droplet
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DROPLET_HOST }}
+          username: ${{ secrets.DROPLET_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+            cd /opt/pet-radar
+
+            # ── .env ───────────────────────────────────────────────────────
+            cat > .env << ENVEOF
+            PORT=${{ secrets.PORT }}
+            MAPBOX_TOKEN=${{ secrets.MAPBOX_TOKEN }}
+            MAILER_EMAIL=${{ secrets.MAILER_EMAIL }}
+            MAILER_PASSWORD=${{ secrets.MAILER_PASSWORD }}
+            MAILER_SERVICE=${{ secrets.MAILER_SERVICE }}
+            DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+            DB_NAME=${{ secrets.DB_NAME }}
+            DB_PORT=${{ secrets.DB_PORT }}
+            DB_HOST=postgres
+            DB_USER=${{ secrets.DB_USER }}
+            REDIS_HOST=redis
+            REDIS_PORT=${{ secrets.REDIS_PORT }}
+            APPINSIGHTS_CONNECTION_STRING=${{ secrets.APPINSIGHTS_CONNECTION_STRING }}
+            DOCKER_USER=${{ secrets.DOCKER_USER }}
+            DOCKER_IMAGE_NAME=${{ secrets.DOCKER_IMAGE_NAME }}
+            ENVEOF
+
+            # ── Login al registry ──────────────────────────────────────────
+            echo "${{ secrets.DOCKER_PASSWORD }}" | docker login ghcr.io \
+              -u "${{ secrets.DOCKER_USER }}" \
+              --password-stdin
+
+            # ── Pull de la nueva imagen ────────────────────────────────────
+            docker pull ghcr.io/${{ secrets.DOCKER_USER }}/${{ secrets.DOCKER_IMAGE_NAME }}:latest
+
+            # ── Levantar solo postgres y redis primero ─────────────────────
+            docker compose -f compose.prod.yaml up -d postgres redis
+
+            # ── Esperar a que postgres esté listo ──────────────────────────
+            echo "Esperando a que PostgreSQL esté listo..."
+            until docker exec PostgresDB pg_isready -U ${{ secrets.DB_USER }} -d ${{ secrets.DB_NAME }}; do
+              sleep 2
+            done
+            echo "PostgreSQL listo."
+
+            # ── Correr migraciones ─────────────────────────────────────────
+            docker run --rm \
+              --network opt-pet-radar_default \
+              --env-file .env \
+              ghcr.io/${{ secrets.DOCKER_USER }}/${{ secrets.DOCKER_IMAGE_NAME }}:latest \
+              sh -c "npx typeorm -d dist/core/database/datasource.js migration:run"
+
+            # ── Levantar la API ────────────────────────────────────────────
+            docker compose -f compose.prod.yaml up -d --remove-orphans
+
+            # ── Limpiar imágenes viejas ────────────────────────────────────
+            docker image prune -f
+
+            echo "✅ Deploy completado."

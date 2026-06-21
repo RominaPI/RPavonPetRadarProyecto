@@ -1,0 +1,44 @@
+services:
+  incident-api:
+    image: ghcr.io/${DOCKER_USER}/${DOCKER_IMAGE_NAME}:latest
+    container_name: PetRadarRomina
+    ports:
+      - 5000:5000
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  postgres:
+    image: postgis/postgis:16-master
+    container_name: PostgresDB
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+    volumes:
+      - postgres_data_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:alpine
+    container_name: pet-radar-redis
+    ports:
+      - 6379:6379
+    volumes:
+      - redis_data_db:/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data_db:
+  redis_data_db:
