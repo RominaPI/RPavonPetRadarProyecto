@@ -10,7 +10,7 @@ export class LostPetController {
 
     @Get()
     async getLostPets() {
-        const res = await this.losPetService.getLostPets;
+        const res = await this.losPetService.getLostPets();
         return res;
     }
     
