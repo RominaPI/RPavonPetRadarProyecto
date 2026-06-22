@@ -81,11 +81,13 @@ export class FoundPetService {
         logger.info('[FoundPetServie] Consultando mascotas en cache');
         const data = await this.cacheService.get<FoundPet[]>(CACHE_KEY_ALL_FOUNDPETS);
         if (data && data.length > 0) {
+            console.log('')
             logger.info("[FoundPetService] Encontramos ${data.length} mascotas en cache");
             return data;
             
         }
         const foundPets = await this.foudPetRepository.find();
+        console.log(`[FoundPetService] Se obtuvieron ${foundPets.length} mascotas`);
         logger.info(`[FoundPetService] Se obtuvieron ${foundPets.length} mascotas`);
         const foundPetsString = JSON.stringify(foundPets);
         await this.cacheService.set(CACHE_KEY_ALL_FOUNDPETS, foundPetsString);
@@ -93,6 +95,7 @@ export class FoundPetService {
         return foundPets;
 
      } catch (error) {
+    console.log(error)
     logger.info(`Error al traer las mascotas`);
     logger.error(error);
     return[];

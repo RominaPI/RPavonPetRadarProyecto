@@ -1,4 +1,4 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post } from '@nestjs/common';
 import type { LostPetDTO } from 'src/core/interfaces/lostPet-DTO.interface';
 import { LostPetService } from './lost-pet.service';
 
@@ -7,6 +7,12 @@ export class LostPetController {
     constructor(
         private readonly losPetService: LostPetService
     ){}
+
+    @Get()
+    async getLostPets() {
+        const res = await this.losPetService.getLostPets;
+        return res;
+    }
     
     @Post()
     async createLostPet(@Body() lostPet: LostPetDTO){
